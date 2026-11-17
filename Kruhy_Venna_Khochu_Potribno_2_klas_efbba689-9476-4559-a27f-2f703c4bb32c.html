@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Круги Венна — Хочу чи потрібно?</title>
+<style>
+:root{--ink:#203047;--muted:#56677e;--green:#39a475;--gold:#f2bc49;--violet:#9c83dc;--line:#dbe3ec;--bg:#f5f8fb;--radius:18px}
+*{box-sizing:border-box}
+html{height:100%}
+body{margin:0;min-height:100%;font-family:Arial,'Segoe UI',sans-serif;color:var(--ink);background:var(--bg)}
+button{font:inherit;cursor:pointer}
+button:focus-visible,.board:focus-visible{outline:4px solid #2563eb;outline-offset:2px}
+.page{max-width:1550px;min-height:100vh;margin:auto;padding:20px 24px;display:flex;flex-direction:column;gap:13px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+h1{font-size:clamp(27px,2.6vw,39px);margin:0 0 5px;font-weight:800;letter-spacing:-.7px}
+.subtitle{margin:0;color:var(--muted);font-size:clamp(14px,1.15vw,17px);line-height:1.4}
+.controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:9px;padding-top:6px}
+.small-btn{border:1px solid #c9d5e2;background:#fff;color:#294058;border-radius:11px;padding:9px 13px;font-weight:700;white-space:nowrap}
+.small-btn.active{color:#fff;background:#375f89;border-color:#375f89}
+.small-btn:hover{filter:brightness(.96)}
+.main{display:grid;grid-template-columns:minmax(580px,1.58fr) minmax(330px,1fr);gap:15px;flex:1;min-height:0}
+.panel{background:white;border:1px solid #dae4ef;border-radius:var(--radius);box-shadow:0 2px 10px rgba(46,70,101,.045);min-width:0;overflow:hidden}
+.panel-heading{padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:57px;border-bottom:1px solid #edf0f4}
+.panel-heading h2{font-size:17px;margin:0}
+.count{font-size:14px;color:#53657c;font-weight:700;white-space:nowrap}
+.venn-panel{display:flex;flex-direction:column}
+.board{position:relative;flex:1;min-height:450px;isolation:isolate;background:radial-gradient(circle at 50% 50%,#f8fbfd 0,#fff 75%);touch-action:manipulation;user-select:none;cursor:crosshair}
+.board.dragover{box-shadow:inset 0 0 0 4px #7db1dd}
+.circle{position:absolute;top:50%;width:calc(var(--r)*2);height:calc(var(--r)*2);border-radius:50%;transform:translate(-50%,-50%);z-index:1}
+.circle.left{left:39%;border:4px solid #65b88f;background:rgba(83,183,130,.20)}
+.circle.right{left:61%;border:4px solid #e0af41;background:rgba(255,209,97,.26);mix-blend-mode:multiply}
+.board-label{position:absolute;z-index:3;text-align:center;font-weight:900;line-height:1.14;pointer-events:none;text-shadow:0 1px white}
+.board-label.left{left:20%;top:17%;transform:translate(-50%,-50%);font-size:clamp(15px,1.4vw,23px);color:#206448}
+.board-label.right{left:80%;top:17%;transform:translate(-50%,-50%);font-size:clamp(15px,1.4vw,23px);color:#806016}
+.board-label.both{left:50%;top:20%;transform:translate(-50%,-50%);font-size:clamp(12px,1.0vw,17px);color:#554580;background:rgba(255,255,255,.85);border:1px solid #ddd2f0;padding:7px 9px;border-radius:9px}
+.placed{position:absolute;inset:0;z-index:5;pointer-events:none}
+.placed-chip{position:absolute;width:min(145px,21%);min-height:59px;max-height:72px;transform:translate(-50%,-50%);border:2px solid #cad6e2;border-radius:11px;background:rgba(255,255,255,.97);padding:6px 6px;box-shadow:0 3px 9px rgba(28,48,69,.12);pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:5px;font-size:clamp(11px,1.0vw,15px);line-height:1.18;font-weight:700;text-align:center;cursor:grab;touch-action:none;overflow:hidden}
+.placed-chip .emoji{font-size:19px;flex-shrink:0}
+.placed-chip:hover{filter:brightness(.96)}
+.placed-chip.sel{outline:3px dashed #295c9c;outline-offset:2px}
+.placed-chip.left{border-color:#7cc49e}
+.placed-chip.right{border-color:#efcb77}
+.placed-chip.both{border-color:#ab91e0}
+.placed-chip.correct{border-color:#23965a;box-shadow:0 0 0 3px rgba(46,165,94,.18)}
+.placed-chip.incorrect{border-color:#dc5b64;box-shadow:0 0 0 3px rgba(222,82,95,.18)}
+.placed-chip .mark{position:absolute;right:3px;top:1px;font-size:12px}
+.board-tip{text-align:center;padding:11px 14px;border-top:1px solid #edf0f4;color:var(--muted);font-size:14px;line-height:1.35;min-height:41px}
+.tray-panel{display:flex;flex-direction:column}
+.tray-content{flex:1;padding:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(85px,auto);align-content:start;gap:9px;overflow-y:auto}
+.card{border:2px solid #d9e1ea;border-radius:12px;background:#fff;padding:9px 10px;display:flex;gap:9px;align-items:flex-start;text-align:left;cursor:grab;touch-action:none;user-select:none;min-height:85px;transition:border-color .13s,background .13s}
+.card:hover{border-color:#8bb6df;background:#f8fbfe}
+.card.selected{border-color:#2b65b2;background:#eef6ff;box-shadow:0 0 0 2px #c0d9f7}
+.card .emoji{font-size:27px;flex-shrink:0;line-height:1.05}
+.card .ctitle{font-weight:800;display:block;font-size:14px;line-height:1.18;margin-bottom:5px}
+.card .desc{font-size:12px;color:#5f6d7c;line-height:1.2;display:block}
+.tray-empty{grid-column:span 2;display:flex;align-items:center;justify-content:center;text-align:center;padding:40px 15px;font-weight:700;color:#36754f;line-height:1.4}
+.bottom{border-radius:var(--radius);background:white;border:1px solid #dbe4ed;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;min-height:67px}
+.feedback{flex:1;font-size:15px;line-height:1.35;color:#3c536d}
+.feedback.positive{color:#197b4a;font-weight:700}
+.feedback.warning{color:#9a5c23;font-weight:700}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:end}
+.action{border:1px solid #c8d5e3;background:#fff;color:#31455e;font-weight:800;padding:11px 15px;border-radius:11px;white-space:nowrap}
+.action.primary{background:#286db0;color:white;border-color:#286db0}
+.action:disabled{opacity:.43;cursor:not-allowed}
+.footer{font-size:12px;color:#6c7b8d;text-align:center;padding:0 10px 4px}
+.drag-ghost{position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-50%);width:160px;min-height:60px;border:3px solid #3978bd;border-radius:12px;background:#fff;box-shadow:0 8px 20px #182c4b40;padding:8px;text-align:center;display:flex;gap:6px;align-items:center;justify-content:center;font-weight:700;line-height:1.15;user-select:none}
+.drag-ghost span:first-child{font-size:24px}
+@media(max-width:980px){.page{padding:12px;gap:9px}.main{grid-template-columns:1fr}.board{min-height:430px}.tray-content{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(82px,auto)}.tray-empty{grid-column:span 3}.top{flex-direction:column}.controls{justify-content:flex-start}.board-label.left{left:20%}.board-label.right{left:80%}.placed-chip{font-size:14px}}
+@media(max-width:600px){h1{font-size:25px}.tray-content{grid-template-columns:repeat(2,minmax(0,1fr))}.board{min-height:330px}.board-label.left,.board-label.right{top:13%;font-size:12px}.board-label.both{top:15%;font-size:10px;padding:4px}.placed-chip{font-size:10px;width:24%;min-height:49px;padding:4px}.placed-chip .emoji{font-size:13px}.bottom{flex-direction:column;align-items:stretch}.actions{justify-content:stretch}.actions button{flex:1}.tray-empty{grid-column:span 2}.card .ctitle{font-size:13px}.card .desc{font-size:11px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+<header class="top">
+ <div><h1>Круги Венна: «Хочу чи потрібно?»</h1><p class="subtitle">Прочитай ситуацію. Перетягни картку у відповідну частину кіл або вибери картку й натисни на коло.</p></div>
+ <nav class="controls" aria-label="Вибір набору завдань"><button type="button" id="round1" class="small-btn active">Набір 1 · Магазин Анни</button><button type="button" id="round2" class="small-btn">Набір 2 · Інші покупки</button></nav>
+</header>
+<main class="main">
+ <section class="panel venn-panel" aria-label="Круги Венна">
+   <div class="panel-heading"><h2>Розклади покупки</h2><span class="count" id="progress">0 із 9</span></div>
+   <div class="board" id="board" role="button" tabindex="0" aria-label="Круги Венна; оберіть картку, а тоді відповідну область">
+     <div class="circle left"></div><div class="circle right"></div>
+     <div class="board-label left">ПОТРІБНО</div><div class="board-label right">ХОЧУ</div><div class="board-label both">І ХОЧУ,<br>І ПОТРІБНО</div>
+     <div class="placed" id="placed"></div>
+   </div>
+   <div class="board-tip" id="boardTip">Кола перетинаються: у середину поклади те, що і потрібно, і подобається.</div>
+ </section>
+ <section class="panel tray-panel" aria-label="Картки із ситуаціями">
+   <div class="panel-heading"><h2>Картки із ситуаціями</h2><span class="count" id="remaining">Залишилось: 9</span></div>
+   <div class="tray-content" id="tray"></div>
+ </section>
+</main>
+<section class="bottom" aria-label="Перевірка вправи">
+ <div class="feedback" id="feedback" aria-live="polite">Працюйте в четвірках: домовляйтеся й пояснюйте, чому обрали саме це місце.</div>
+ <div class="actions">
+   <button type="button" class="action" id="returnCard" disabled>Повернути картку</button>
+   <button type="button" class="action" id="reset">Почати знову</button>
+   <button type="button" class="action primary" id="check">Перевірити</button>
+ </div>
+</section>
+<footer class="footer">Порада: одна й та сама річ може бути і потрібною, і бажаною. У цій вправі важлива ситуація, описана на картці.</footer>
+</div>
+<script>
+'use strict';
+const rounds=[
+ {name:'Магазин Анни',cards:[
+  {id:'a1',emoji:'📒',title:'Альбом для уроку',desc:'Старий альбом закінчився. Завтра малювання.',answer:'left',why:'Альбом потрібен для заняття.'},
+  {id:'a2',emoji:'🧴',title:'Клей закінчився',desc:'Клею більше немає, а завтра аплікація.',answer:'left',why:'Клей потрібен для завтрашнього уроку.'},
+  {id:'a3',emoji:'🧤',title:'Нові рукавиці',desc:'Старі рукавиці стали замалі.',answer:'left',why:'Потрібні рукавиці відповідного розміру.'},
+  {id:'a4',emoji:'⌨️',title:'Іграшка «Клавіші»',desc:'Анна побачила рекламу. У неї є інший антистрес.',answer:'right',why:'Це незаплановане бажання, а не необхідність.'},
+  {id:'a5',emoji:'✏️',title:'Третій пенал',desc:'Два справні пенали вже є, але хочеться ще один.',answer:'right',why:'Пенали вже є. Це додаткове бажання.'},
+  {id:'a6',emoji:'✨',title:'Брелок біля каси',desc:'Побачив красивий брелок і захотів його.',answer:'right',why:'Брелок привернув увагу, але не був потрібен.'},
+  {id:'a7',emoji:'📓',title:'Гарний зошит',desc:'Зошит потрібен для уроку, і його обкладинка подобається.',answer:'both',why:'Зошит потрібен, але водночас дуже подобається.'},
+  {id:'a8',emoji:'👟',title:'Зручні кросівки',desc:'Старі стали малі. Нові зручні й дуже подобаються.',answer:'both',why:'Взуття потрібне, а обрана пара ще й подобається.'},
+  {id:'a9',emoji:'📚',title:'Книжка для читання',desc:'Для завдання потрібна книжка, і саме ця історія цікава.',answer:'both',why:'Книжка потрібна для завдання і водночас бажана.'}
+ ]},
+ {name:'Інші покупки',cards:[
+  {id:'b1',emoji:'✏️',title:'Олівці для уроку',desc:'Олівці закінчилися, а завтра потрібно малювати.',answer:'left',why:'Олівці потрібні для навчання.'},
+  {id:'b2',emoji:'🔋',title:'Батарейки',desc:'У потрібному для походу ліхтарику сіли батарейки.',answer:'left',why:'Батарейки потрібні, щоб працював ліхтарик.'},
+  {id:'b3',emoji:'🧦',title:'Теплі шкарпетки',desc:'Старі шкарпетки порвалися, а надворі холодно.',answer:'left',why:'Потрібні шкарпетки замість зношених.'},
+  {id:'b4',emoji:'🍬',title:'Цукерки з акції',desc:'Удома вже є солодощі, але помітив напис «Акція!».',answer:'right',why:'Рекламна акція викликала додаткове бажання.'},
+  {id:'b5',emoji:'🪀',title:'Ще одна іграшка',desc:'Маєш схожу вдома, але нова здається цікавішою.',answer:'right',why:'Це бажана, а не необхідна покупка.'},
+  {id:'b6',emoji:'🌟',title:'Блискучі наліпки',desc:'Побачив наліпки у вітрині й захотів купити.',answer:'right',why:'Це нове бажання, що виникло біля вітрини.'},
+  {id:'b7',emoji:'☂️',title:'Кольорова парасоля',desc:'Стара зламалася. Нова потрібна й дуже подобається.',answer:'both',why:'Парасоля потрібна, і її вигляд подобається.'},
+  {id:'b8',emoji:'🎒',title:'Новий рюкзак',desc:'Старий порвався. Новий міцний і гарний.',answer:'both',why:'Рюкзак потрібен, а модель ще й подобається.'},
+  {id:'b9',emoji:'🧥',title:'Тепла куртка',desc:'Стара стала мала. Нова зручна й улюбленого кольору.',answer:'both',why:'Куртка потрібна, і вона відповідає бажанню.'}
+ ]}
+];
+let roundIndex=0,placements={},selected=null,checked=false,answerVisible=false;
+const $=id=>document.getElementById(id);
+const board=$('board'),tray=$('tray'),placed=$('placed');
+const ZONELABEL={left:'ПОТРІБНО',right:'ХОЧУ',both:'І ХОЧУ, І ПОТРІБНО'};
+let dragState=null,ignoreClickUntil=0;
+function cards(){return rounds[roundIndex].cards;}
+function cardById(id){return cards().find(c=>c.id===id);}
+function render(){
+ const set=cards();const count=Object.keys(placements).length;
+ $('round1').classList.toggle('active',roundIndex===0);
+ $('round2').classList.toggle('active',roundIndex===1);
+ $('progress').textContent=count+' із '+set.length;
+ $('remaining').textContent='Залишилось: '+(set.length-count);
+ $('returnCard').disabled=!(selected && placements[selected]);
+ tray.innerHTML='';
+ const remaining=set.filter(c=>!placements[c.id]);
+ if(!remaining.length){const d=document.createElement('div');d.className='tray-empty';d.textContent='Усі картки розкладено. Тепер перевірте відповіді!';tray.append(d);}
+ for(const c of remaining){
+  const b=document.createElement('button');b.type='button';b.className='card'+(selected===c.id?' selected':'');
+  b.setAttribute('aria-pressed',String(selected===c.id));
+  b.title=c.desc;
+  b.innerHTML='<span class="emoji" aria-hidden="true">'+c.emoji+'</span><span><span class="ctitle">'+c.title+'</span><span class="desc">'+c.desc+'</span></span>';
+  bindCardEvents(b,c.id);tray.append(b);
+ }
+ placed.innerHTML='';
+ for(const zone of ['left','both','right']){
+   const zoneCards=set.filter(c=>placements[c.id]===zone);
+   zoneCards.forEach((c,i)=>{
+    const b=document.createElement('button');b.type='button';b.className='placed-chip '+zone+(selected===c.id?' sel':'');
+    if(checked)b.classList.add(c.answer===zone?'correct':'incorrect');
+    const pos=chipPosition(zone,i,zoneCards.length);
+    b.style.left=pos.x+'%';b.style.top=pos.y+'%';
+    b.title=c.desc+' — натисніть, щоб перемістити';
+    b.setAttribute('aria-label',c.title+'; '+c.desc+'; область '+ZONELABEL[zone]);
+    b.innerHTML='<span class="emoji" aria-hidden="true">'+c.emoji+'</span><span>'+c.title+'</span>'+(checked?'<span class="mark" aria-hidden="true">'+(c.answer===zone?'✓':'!')+'</span>':'');
+    bindCardEvents(b,c.id);placed.append(b);
+   });
+ }
+ if(selected){$('boardTip').textContent='Картку вибрано. Натисни на потрібну частину кіл або перетягни її.';}
+ else{$('boardTip').textContent='Кола перетинаються: у середину поклади те, що і потрібно, і подобається.';}
+}
+function chipPosition(zone,i,n){
+ const x=zone==='left'?20.5:zone==='right'?79.5:50;
+ let y=50;
+ if(n<=1)y=50;
+ else if(n===2)y=37+i*26;
+ else if(n===3)y=30+i*20;
+ else {y=21+i*(58/(n-1));}
+ return {x,y};
+}
+function updateGeometry(){
+ const r=Math.min(board.clientHeight*.44,board.clientWidth*.335);
+ board.style.setProperty('--r',r+'px');
+}
+function getZone(x,y){
+ const rect=board.getBoundingClientRect();
+ const px=x-rect.left,py=y-rect.top;
+ const r=Math.min(rect.height*.44,rect.width*.335),cy=rect.height*.5;
+ const l=Math.hypot(px-rect.width*.39,py-cy)<=r;
+ const rr=Math.hypot(px-rect.width*.61,py-cy)<=r;
+ return l&&rr?'both':l?'left':rr?'right':null;
+}
+function placeCard(id,zone){
+ if(!zone)return;
+ placements[id]=zone;selected=null;checked=false;
+ $('feedback').className='feedback';$('feedback').textContent='Поясніть, чому ця покупка опинилася саме тут.';
+ render();
+}
+function selectCard(id){
+ selected=selected===id?null:id;
+ checked=false;$('feedback').className='feedback';$('feedback').textContent=selected?'Картку вибрано. Натисніть на потрібну частину кіл.':'Оберіть наступну картку.';
+ render();
+}
+function bindCardEvents(el,id){
+ el.addEventListener('click',e=>{e.stopPropagation();if(Date.now()<ignoreClickUntil)return;selectCard(id);});
+ el.addEventListener('pointerdown',e=>{
+  if(e.button!==0||dragState)return;
+  dragState={id,startX:e.clientX,startY:e.clientY,moving:false,ghost:null};
+  try{el.setPointerCapture(e.pointerId);}catch(err){}
+ });
+ el.addEventListener('pointermove',e=>{
+  if(!dragState||dragState.id!==id)return;
+  const d=dragState;
+  const moved=Math.hypot(e.clientX-d.startX,e.clientY-d.startY)>8;
+  if(moved&&!d.moving){
+   d.moving=true;const c=cardById(id);const g=document.createElement('div');g.className='drag-ghost';
+   g.innerHTML='<span>'+c.emoji+'</span><span>'+c.title+'</span>';
+   document.body.append(g);d.ghost=g;board.classList.add('dragover');
+  }
+  if(d.moving){e.preventDefault();d.ghost.style.left=e.clientX+'px';d.ghost.style.top=e.clientY+'px';}
+ });
+ el.addEventListener('pointerup',e=>{
+  if(!dragState||dragState.id!==id)return;
+  const d=dragState;dragState=null;
+  if(d.ghost)d.ghost.remove();board.classList.remove('dragover');
+  if(d.moving){
+   ignoreClickUntil=Date.now()+250;
+   const zone=getZone(e.clientX,e.clientY);
+   if(zone)placeCard(id,zone);else if(placements[id]&&e.clientX>tray.getBoundingClientRect().left){delete placements[id];selected=null;checked=false;render();}
+  }
+ });
+ el.addEventListener('pointercancel',()=>{if(dragState){dragState.ghost?.remove();dragState=null;board.classList.remove('dragover');}});
+}
+board.addEventListener('click',e=>{
+ if(!selected)return;
+ const zone=getZone(e.clientX,e.clientY);if(zone)placeCard(selected,zone);
+});
+board.addEventListener('keydown',e=>{
+ if(!selected)return;
+ if(['1','2','3'].includes(e.key)){
+  const zone={1:'left',2:'both',3:'right'}[e.key];placeCard(selected,zone);e.preventDefault();
+ }
+});
+function reset(round){roundIndex=round;placements={};selected=null;checked=false;
+ $('feedback').className='feedback';$('feedback').textContent='Працюйте в четвірках: домовляйтеся й пояснюйте, чому обрали саме це місце.';
+ render();updateGeometry();
+}
+$('round1').onclick=()=>reset(0);
+$('round2').onclick=()=>reset(1);
+$('reset').onclick=()=>reset(roundIndex);
+$('returnCard').onclick=()=>{if(!selected)return;delete placements[selected];selected=null;checked=false;$('feedback').className='feedback';$('feedback').textContent='Картку повернено. Можна обрати її ще раз.';render();};
+$('check').onclick=()=>{
+ const missing=cards().filter(c=>!placements[c.id]).length;
+ if(missing){$('feedback').className='feedback warning';$('feedback').textContent='Спочатку розкладіть усі картки. Залишилося: '+missing+'.';return;}
+ checked=true;selected=null;
+ const wrong=cards().filter(c=>placements[c.id]!==c.answer);const score=cards().length-wrong.length;
+ $('feedback').className='feedback '+(wrong.length?'warning':'positive');
+ $('feedback').textContent=wrong.length?'Правильно: '+score+' із '+cards().length+'. Поміркуйте над картками, позначеними знаком «!», і спробуйте їх перемістити.':'Чудово! Усі '+cards().length+' карток розкладено правильно. Поясніть командою два свої рішення.';
+ render();
+};
+window.addEventListener('resize',updateGeometry);
+if('ResizeObserver' in window)new ResizeObserver(updateGeometry).observe(board);
+reset(0);
+</script>
+</body>
+</html>
